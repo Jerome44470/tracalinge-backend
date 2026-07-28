@@ -11,6 +11,9 @@ import { deliveryNotesRouter } from "./routes/deliveryNotes.js";
 import { invoicesRouter } from "./routes/invoices.js";
 import { itemsRouter, settingsRouter, portalRouter } from "./routes/misc.js";
 import { linenTypesRouter } from "./routes/linenTypes.js";
+import { clientCategoriesRouter } from "./routes/clientCategories.js";
+import { paymentMethodsRouter } from "./routes/paymentMethods.js";
+import { prospectsPublicRouter, prospectsStaffRouter } from "./routes/prospects.js";
 
 const app = express();
 const corsOrigins = (process.env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -29,6 +32,10 @@ app.use("/api/items", itemsRouter);
 app.use("/api/linen-types", linenTypesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/portal", portalRouter);
+app.use("/api/client-categories", clientCategoriesRouter);
+app.use("/api/payment-methods", paymentMethodsRouter);
+app.use("/api/prospects", prospectsPublicRouter);
+app.use("/api/staff/prospects", prospectsStaffRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
