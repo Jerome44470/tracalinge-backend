@@ -16,8 +16,15 @@ clientsRouter.post("/", (req, res) => {
   if (!name || !email) return res.status(400).json({ error: "Nom et email requis." });
   const id = randomUUID();
   const password = randomBytes(5).toString("hex");
-  db.prepare("INSERT INTO clients (id, name, address, email, password_hash, created_at) VALUES (?,?,?,?,?,?)")
-    .run(id, name, address || "", email.toLowerCase().trim(), hashPassword(password), Date.now());
+  try {
+    db.prepare("INSERT INTO clients (id, name, address, email, password_hash, created_at) VALUES (?,?,?,?,?,?)")
+      .run(id, name, address || "", email.toLowerCase().trim(), hashPassword(password), Date.now());
+  } catch (err) {
+    if (String(err.message).includes("UNIQUE")) {
+      return res.status(409).json({ error: "Un client existe déjà avec cet email." });
+    }
+    throw err;
+  }
   res.status(201).json({ id, name, address, email, temporaryPassword: password });
 });
 
