@@ -6,7 +6,7 @@ const dbFile = process.env.DB_FILE || "./data/tracalinge.db";
 fs.mkdirSync(path.dirname(dbFile), { recursive: true });
 
 export const db = new Database(dbFile);
-db.pragma("journal_mode = WAL"); // permet des lectures concurrentes pendant les écritures (quai + mobiles + livraison)
+db.pragma("journal_mode = WAL");
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS staff_users (
@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS linen_types (
   price REAL NOT NULL
 );
 
--- status: 'recu' | 'expedie' | 'perdu'
 CREATE TABLE IF NOT EXISTS items (
   tag TEXT PRIMARY KEY,
   client_id TEXT NOT NULL REFERENCES clients(id),
@@ -43,8 +42,6 @@ CREATE TABLE IF NOT EXISTS items (
   invoiced INTEGER NOT NULL DEFAULT 0
 );
 
--- kind: 'reception' | 'expedition' | 'perte'
--- source: 'quai' | 'mobile' | 'livraison' (traçabilité de l'appareil d'origine)
 CREATE TABLE IF NOT EXISTS movements (
   id TEXT PRIMARY KEY,
   tag TEXT NOT NULL,
@@ -56,7 +53,6 @@ CREATE TABLE IF NOT EXISTS movements (
   at INTEGER NOT NULL
 );
 
--- status: 'brouillon' | 'envoye'
 CREATE TABLE IF NOT EXISTS delivery_notes (
   id TEXT PRIMARY KEY,
   numero TEXT UNIQUE NOT NULL,
@@ -75,7 +71,6 @@ CREATE TABLE IF NOT EXISTS delivery_note_items (
   PRIMARY KEY (delivery_note_id, tag)
 );
 
--- periodType: 'ponctuelle' | 'quinzaine' | 'mois'
 CREATE TABLE IF NOT EXISTS invoices (
   id TEXT PRIMARY KEY,
   numero TEXT UNIQUE NOT NULL,
@@ -107,6 +102,20 @@ CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_client ON items(client_id);
 CREATE INDEX IF NOT EXISTS idx_movements_at ON movements(at);
 CREATE INDEX IF NOT EXISTS idx_dln_client ON delivery_notes(client_id);
+`);
+
+function ensureColumn(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+ensureColumn("staff_users", "role", "TEXT NOT NULL DEFAULT 'staff'");
+ensureColumn("linen_types", "active", "INTEGER NOT NULL DEFAULT 1");
+ensureColumn("linen_types", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+db.exec(`
+  UPDATE linen_types SET sort_order = (SELECT COUNT(*) FROM linen_types t2 WHERE t2.rowid <= linen_types.rowid)
+  WHERE sort_order = 0;
 `);
 
 export function getSetting(key, fallback) {
