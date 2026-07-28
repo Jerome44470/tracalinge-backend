@@ -18,11 +18,12 @@ for (const t of LINEN_TYPES) {
 const adminEmail = (process.env.ADMIN_EMAIL || "admin@tracalinge.fr").toLowerCase();
 const existingAdmin = db.prepare("SELECT id FROM staff_users WHERE email = ?").get(adminEmail);
 if (!existingAdmin) {
-  db.prepare("INSERT INTO staff_users (id, email, password_hash, created_at) VALUES (?,?,?,?)")
-    .run(randomUUID(), adminEmail, hashPassword(process.env.ADMIN_PASSWORD || "change-moi"), Date.now());
-  console.log(`Compte staff créé : ${adminEmail}`);
+  db.prepare("INSERT INTO staff_users (id, email, password_hash, role, created_at) VALUES (?,?,?,?,?)")
+    .run(randomUUID(), adminEmail, hashPassword(process.env.ADMIN_PASSWORD || "change-moi"), "admin", Date.now());
+  console.log(`Compte staff créé (rôle administrateur) : ${adminEmail}`);
 } else {
-  console.log("Compte staff déjà existant, non modifié.");
+  db.prepare("UPDATE staff_users SET role = 'admin' WHERE email = ?").run(adminEmail);
+  console.log("Compte staff déjà existant — rôle administrateur confirmé.");
 }
 
 const defaults = {
