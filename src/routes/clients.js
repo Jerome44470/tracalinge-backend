@@ -94,4 +94,38 @@ clientsRouter.patch("/:id", (req, res) => {
     accounting_email: f.accountingEmail !== undefined ? f.accountingEmail : existing.accounting_email,
     payment_method_id: f.paymentMethodId !== undefined ? f.paymentMethodId : existing.payment_method_id,
     payment_days: f.paymentDays !== undefined ? Number(f.paymentDays) : existing.payment_days,
-    rib: f.rib
+    rib: f.rib !== undefined ? f.rib : existing.rib,
+    bl_show_prices: f.blShowPrices !== undefined ? (f.blShowPrices ? 1 : 0) : existing.bl_show_prices,
+  };
+
+  db.prepare(`
+    UPDATE clients SET name=?, category_id=?, address=?, billing_address=?, siret=?,
+      referent_name=?, referent_phone=?, referent_email=?, accounting_name=?, accounting_phone=?, accounting_email=?,
+      payment_method_id=?, payment_days=?, rib=?, bl_show_prices=?
+    WHERE id=?
+  `).run(
+    fields.name, fields.category_id, fields.address, fields.billing_address, fields.siret,
+    fields.referent_name, fields.referent_phone, fields.referent_email,
+    fields.accounting_name, fields.accounting_phone, fields.accounting_email,
+    fields.payment_method_id, fields.payment_days, fields.rib, fields.bl_show_prices,
+    existing.id
+  );
+
+  if (Array.isArray(f.emails)) {
+    db.prepare("DELETE FROM client_emails WHERE client_id = ?").run(existing.id);
+    for (const e of f.emails) {
+      if (!e.email) continue;
+      db.prepare("INSERT INTO client_emails (id, client_id, email, is_contact, is_bl, is_facture) VALUES (?,?,?,?,?,?)")
+        .run(randomUUID(), existing.id, e.email.trim(), e.isContact ? 1 : 0, e.isBl ? 1 : 0, e.isFacture ? 1 : 0);
+    }
+  }
+
+  res.json(loadClient(existing.id));
+});
+
+clientsRouter.post("/:id/reset-password", (req, res) => {
+  const password = randomBytes(5).toString("hex");
+  const result = db.prepare("UPDATE clients SET password_hash = ? WHERE id = ?").run(hashPassword(password), req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: "Client introuvable." });
+  res.json({ temporaryPassword: password });
+});
