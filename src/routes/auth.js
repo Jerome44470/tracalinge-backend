@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
-import { signStaffToken, signClientToken, checkPassword } from "../auth.js";
+import { signStaffToken, signClientToken, checkPassword, requireStaff } from "../auth.js";
 
 export const authRouter = Router();
 
@@ -21,4 +21,8 @@ authRouter.post("/portal/login", (req, res) => {
     return res.status(401).json({ error: "Identifiants incorrects." });
   }
   res.json({ token: signClientToken(client), client: { id: client.id, name: client.name } });
+});
+
+authRouter.get("/me", requireStaff, (req, res) => {
+  res.json({ email: req.user.email, role: req.user.staffRole || "staff" });
 });
