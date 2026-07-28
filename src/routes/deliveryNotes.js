@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db, getSetting, setSetting } from "../db.js";
 import { requireStaff } from "../auth.js";
 import { broadcastStaff, broadcastClient } from "../realtime.js";
+import { sendMail, deliveryNoteEmailHtml } from "../lib/mail.js";
 
 export const deliveryNotesRouter = Router();
 deliveryNotesRouter.use(requireStaff);
@@ -70,17 +71,35 @@ deliveryNotesRouter.post("/", (req, res) => {
   res.status(201).json(note);
 });
 
-deliveryNotesRouter.post("/:id/send", (req, res) => {
+deliveryNotesRouter.post("/:id/send", async (req, res) => {
   const note = loadNote(req.params.id);
   if (!note) return res.status(404).json({ error: "Bon introuvable." });
+  const client = db.prepare("SELECT * FROM clients WHERE id = ?").get(note.client_id);
   const now = Date.now();
   db.prepare("UPDATE delivery_notes SET status='envoye', sent_at=? WHERE id=?").run(now, note.id);
-  // Point d'intégration : brancher ici un service d'emailing (ex. SendGrid, Brevo) pour joindre
-  // le PDF et l'envoyer réellement au client. Pour l'instant l'envoi est marqué mais pas exécuté.
   const updated = loadNote(note.id);
   broadcastStaff("deliveryNote:updated", updated);
   broadcastClient(note.client_id, "deliveryNote:updated", updated);
-  res.json(updated);
+
+  const total = updated.items.reduce((s, it) => {
+    const price = db.prepare("SELECT price FROM linen_types WHERE id = ?").get(it.type_id)?.price || 0;
+    return s + price;
+  }, 0);
+  const mailResult = await sendMail({
+    to: client?.email,
+    toName: client?.name,
+    subject: `${getSetting("companyName", "Traçalinge")} — Bon de livraison ${updated.numero} disponible`,
+    html: deliveryNoteEmailHtml({
+      companyName: getSetting("companyName", "Traçalinge"),
+      clientName: client?.name || "",
+      numero: updated.numero,
+      itemCount: updated.items.length,
+      total: `${total.toFixed(2)} €`,
+      portalUrl: process.env.PORTAL_URL || "",
+    }),
+  });
+
+  res.json({ ...updated, emailSent: mailResult.sent, emailReason: mailResult.reason });
 });
 
 // Retire une ligne d'un bon en brouillon (erreur de scan) : l'article repasse "en lavage".
