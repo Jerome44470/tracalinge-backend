@@ -7,7 +7,7 @@ if (!SECRET || SECRET.length < 16) {
 }
 
 export function signStaffToken(user) {
-  return jwt.sign({ sub: user.id, role: "staff", email: user.email }, SECRET, { expiresIn: "12h" });
+  return jwt.sign({ sub: user.id, role: "staff", email: user.email, staffRole: user.role || "staff" }, SECRET, { expiresIn: "12h" });
 }
 export function signClientToken(client) {
   return jwt.sign({ sub: client.id, role: "client", email: client.email }, SECRET, { expiresIn: "12h" });
@@ -22,7 +22,6 @@ function verify(req) {
   try { return jwt.verify(token, SECRET); } catch { return null; }
 }
 
-// Autorise uniquement le personnel (quai, bureau) — utilisé pour toutes les routes de gestion.
 export function requireStaff(req, res, next) {
   const payload = verify(req);
   if (!payload || payload.role !== "staff") return res.status(401).json({ error: "Authentification requise (personnel)." });
@@ -30,7 +29,6 @@ export function requireStaff(req, res, next) {
   next();
 }
 
-// Autorise uniquement un client connecté à son espace — ne peut voir que ses propres données.
 export function requireClient(req, res, next) {
   const payload = verify(req);
   if (!payload || payload.role !== "client") return res.status(401).json({ error: "Authentification requise (espace client)." });
@@ -38,9 +36,6 @@ export function requireClient(req, res, next) {
   next();
 }
 
-// Autorise le personnel OU un appareil de collecte muni de sa clé (antenne fixe, PDA mobile,
-// terminal de livraison). Ces appareils ne "se connectent" pas comme un humain : ils portent une
-// clé statique envoyée dans le header X-Device-Key à chaque requête.
 export function requireStaffOrDevice(req, res, next) {
   const deviceKey = req.headers["x-device-key"];
   if (deviceKey && deviceKey === process.env.DEVICE_KEY) {
@@ -48,4 +43,11 @@ export function requireStaffOrDevice(req, res, next) {
     return next();
   }
   return requireStaff(req, res, next);
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user?.staffRole !== "admin") {
+    return res.status(403).json({ error: "Action réservée à un compte administrateur." });
+  }
+  next();
 }
