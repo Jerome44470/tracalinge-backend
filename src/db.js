@@ -113,10 +113,70 @@ function ensureColumn(table, column, definition) {
 ensureColumn("staff_users", "role", "TEXT NOT NULL DEFAULT 'staff'");
 ensureColumn("linen_types", "active", "INTEGER NOT NULL DEFAULT 1");
 ensureColumn("linen_types", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("linen_types", "tax_type", "TEXT");
+ensureColumn("linen_types", "tax_value", "REAL NOT NULL DEFAULT 0");
 db.exec(`
   UPDATE linen_types SET sort_order = (SELECT COUNT(*) FROM linen_types t2 WHERE t2.rowid <= linen_types.rowid)
   WHERE sort_order = 0;
 `);
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS client_categories (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  default_days INTEGER NOT NULL DEFAULT 30,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS client_emails (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL REFERENCES clients(id),
+  email TEXT NOT NULL,
+  is_contact INTEGER NOT NULL DEFAULT 0,
+  is_bl INTEGER NOT NULL DEFAULT 0,
+  is_facture INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS prospects (
+  id TEXT PRIMARY KEY,
+  token TEXT UNIQUE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  data TEXT,
+  created_at INTEGER NOT NULL,
+  submitted_at INTEGER,
+  client_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS client_linen_types (
+  client_id TEXT NOT NULL REFERENCES clients(id),
+  type_id TEXT NOT NULL REFERENCES linen_types(id),
+  price REAL NOT NULL,
+  PRIMARY KEY (client_id, type_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_emails_client ON client_emails(client_id);
+`);
+
+ensureColumn("clients", "client_number", "TEXT");
+ensureColumn("clients", "category_id", "TEXT");
+ensureColumn("clients", "billing_address", "TEXT");
+ensureColumn("clients", "referent_name", "TEXT");
+ensureColumn("clients", "referent_phone", "TEXT");
+ensureColumn("clients", "referent_email", "TEXT");
+ensureColumn("clients", "accounting_name", "TEXT");
+ensureColumn("clients", "accounting_phone", "TEXT");
+ensureColumn("clients", "accounting_email", "TEXT");
+ensureColumn("clients", "payment_method_id", "TEXT");
+ensureColumn("clients", "payment_days", "INTEGER");
+ensureColumn("clients", "rib", "TEXT");
+ensureColumn("clients", "siret", "TEXT");
+ensureColumn("clients", "bl_show_prices", "INTEGER NOT NULL DEFAULT 1");
 
 export function getSetting(key, fallback) {
   const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
@@ -125,4 +185,10 @@ export function getSetting(key, fallback) {
 
 export function setSetting(key, value) {
   db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, String(value));
+}
+
+export function nextClientNumber() {
+  const n = parseInt(getSetting("clientCounter", "1"), 10);
+  setSetting("clientCounter", n + 1);
+  return `CL-${String(n).padStart(4, "0")}`;
 }
