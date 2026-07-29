@@ -14,6 +14,7 @@ import { linenTypesRouter } from "./routes/linenTypes.js";
 import { clientCategoriesRouter } from "./routes/clientCategories.js";
 import { paymentMethodsRouter } from "./routes/paymentMethods.js";
 import { prospectsPublicRouter, prospectsStaffRouter } from "./routes/prospects.js";
+import { clientLinenTypesRouter } from "./routes/clientLinenTypes.js";
 
 const app = express();
 const corsOrigins = (process.env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -36,6 +37,7 @@ app.use("/api/client-categories", clientCategoriesRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/prospects", prospectsPublicRouter);
 app.use("/api/staff/prospects", prospectsStaffRouter);
+app.use("/api/clients/:clientId/linen-types", clientLinenTypesRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
