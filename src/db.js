@@ -177,6 +177,7 @@ ensureColumn("clients", "payment_days", "INTEGER");
 ensureColumn("clients", "rib", "TEXT");
 ensureColumn("clients", "siret", "TEXT");
 ensureColumn("clients", "bl_show_prices", "INTEGER NOT NULL DEFAULT 1");
+ensureColumn("client_linen_types", "included", "INTEGER NOT NULL DEFAULT 1");
 
 export function getSetting(key, fallback) {
   const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
