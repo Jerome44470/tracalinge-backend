@@ -16,8 +16,9 @@ authRouter.post("/staff/login", (req, res) => {
 
 authRouter.post("/portal/login", (req, res) => {
   const { email, password } = req.body || {};
-  const client = db.prepare("SELECT * FROM clients WHERE email = ?").get((email || "").toLowerCase().trim());
-  if (!client || !checkPassword(password || "", client.password_hash)) {
+  const candidates = db.prepare("SELECT * FROM clients WHERE email = ?").all((email || "").toLowerCase().trim());
+  const client = candidates.find((c) => checkPassword(password || "", c.password_hash));
+  if (!client) {
     return res.status(401).json({ error: "Identifiants incorrects." });
   }
   res.json({ token: signClientToken(client), client: { id: client.id, name: client.name } });
