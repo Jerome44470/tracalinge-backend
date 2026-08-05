@@ -179,6 +179,31 @@ ensureColumn("clients", "siret", "TEXT");
 ensureColumn("clients", "bl_show_prices", "INTEGER NOT NULL DEFAULT 1");
 ensureColumn("client_linen_types", "included", "INTEGER NOT NULL DEFAULT 1");
 
+// Un même email doit pouvoir être réutilisé pour plusieurs clients (ex. gestionnaire multi-sites).
+// SQLite ne permet pas de retirer une contrainte UNIQUE via ALTER TABLE : on recrée la table une
+// seule fois (migration protégée par un indicateur dans les paramètres).
+if (getSetting("emailUniqueRemoved", "0") !== "1") {
+  db.exec(`
+    CREATE TABLE clients_new (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT, email TEXT, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL,
+      client_number TEXT, category_id TEXT, billing_address TEXT,
+      referent_name TEXT, referent_phone TEXT, referent_email TEXT,
+      accounting_name TEXT, accounting_phone TEXT, accounting_email TEXT,
+      payment_method_id TEXT, payment_days INTEGER, rib TEXT, siret TEXT, bl_show_prices INTEGER NOT NULL DEFAULT 1
+    );
+    INSERT INTO clients_new (id, name, address, email, password_hash, created_at, client_number, category_id, billing_address,
+      referent_name, referent_phone, referent_email, accounting_name, accounting_phone, accounting_email,
+      payment_method_id, payment_days, rib, siret, bl_show_prices)
+    SELECT id, name, address, email, password_hash, created_at, client_number, category_id, billing_address,
+      referent_name, referent_phone, referent_email, accounting_name, accounting_phone, accounting_email,
+      payment_method_id, payment_days, rib, siret, bl_show_prices FROM clients;
+    DROP TABLE clients;
+    ALTER TABLE clients_new RENAME TO clients;
+    CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email);
+  `);
+  setSetting("emailUniqueRemoved", "1");
+}
+
 export function getSetting(key, fallback) {
   const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
   return row ? row.value : fallback;
