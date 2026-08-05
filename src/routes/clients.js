@@ -24,25 +24,20 @@ export function createClient(fields) {
   const clientNumber = nextClientNumber();
   const password = randomBytes(5).toString("hex");
 
-  try {
-    db.prepare(`
-      INSERT INTO clients (
-        id, name, client_number, category_id, address, billing_address, email, password_hash, siret,
-        referent_name, referent_phone, referent_email, accounting_name, accounting_phone, accounting_email,
-        payment_method_id, payment_days, rib, bl_show_prices, created_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `).run(
-      id, name, clientNumber, categoryId || null, address || "", billingAddress || address || "",
-      email.toLowerCase().trim(), hashPassword(password), siret || "",
-      referentName || "", referentPhone || "", referentEmail || "",
-      accountingName || "", accountingPhone || "", accountingEmail || "",
-      paymentMethodId || null, paymentDays != null ? Number(paymentDays) : null, rib || "",
-      blShowPrices === false ? 0 : 1, Date.now()
-    );
-  } catch (err) {
-    if (String(err.message).includes("UNIQUE")) throw Object.assign(new Error("Un client existe déjà avec cet email."), { status: 409 });
-    throw err;
-  }
+  db.prepare(`
+    INSERT INTO clients (
+      id, name, client_number, category_id, address, billing_address, email, password_hash, siret,
+      referent_name, referent_phone, referent_email, accounting_name, accounting_phone, accounting_email,
+      payment_method_id, payment_days, rib, bl_show_prices, created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    id, name, clientNumber, categoryId || null, address || "", billingAddress || address || "",
+    email.toLowerCase().trim(), hashPassword(password), siret || "",
+    referentName || "", referentPhone || "", referentEmail || "",
+    accountingName || "", accountingPhone || "", accountingEmail || "",
+    paymentMethodId || null, paymentDays != null ? Number(paymentDays) : null, rib || "",
+    blShowPrices === false ? 0 : 1, Date.now()
+  );
 
   if (Array.isArray(emails)) {
     for (const e of emails) {
