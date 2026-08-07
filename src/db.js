@@ -218,3 +218,54 @@ export function nextClientNumber() {
   setSetting("clientCounter", n + 1);
   return `CL-${String(n).padStart(4, "0")}`;
 }
+
+// --- Circuit manuel de secours (sans RFID) : commande client -> traitement -> préparation -> validation ---
+db.exec(`
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL REFERENCES clients(id),
+  status TEXT NOT NULL DEFAULT 'attente',
+  notes TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  order_id TEXT NOT NULL REFERENCES orders(id),
+  type_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  PRIMARY KEY (order_id, type_id)
+);
+
+CREATE TABLE IF NOT EXISTS batches (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL REFERENCES clients(id),
+  order_id TEXT,
+  status TEXT NOT NULL DEFAULT 'traitement',
+  step_tri INTEGER NOT NULL DEFAULT 0,
+  step_lavage INTEGER NOT NULL DEFAULT 0,
+  step_sechage INTEGER NOT NULL DEFAULT 0,
+  step_pliage INTEGER NOT NULL DEFAULT 0,
+  step_calandre INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  prepared_at INTEGER,
+  validated_at INTEGER,
+  delivery_note_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS batch_items (
+  batch_id TEXT NOT NULL REFERENCES batches(id),
+  type_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  PRIMARY KEY (batch_id, type_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_batches_status ON batches(status);
+`);
+
+export function nextDeliveryNumero() {
+  const year = new Date().getFullYear();
+  const n = parseInt(getSetting("dlnCounter", "1"), 10);
+  setSetting("dlnCounter", n + 1);
+  return `BL-${year}-${String(n).padStart(4, "0")}`;
+}
