@@ -15,15 +15,14 @@ import { clientCategoriesRouter } from "./routes/clientCategories.js";
 import { paymentMethodsRouter } from "./routes/paymentMethods.js";
 import { prospectsPublicRouter, prospectsStaffRouter } from "./routes/prospects.js";
 import { clientLinenTypesRouter } from "./routes/clientLinenTypes.js";
+import { ordersStaffRouter, ordersPortalRouter } from "./routes/orders.js";
+import { batchesRouter } from "./routes/batches.js";
 
 const app = express();
 const corsOrigins = (process.env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
-
 app.use(cors({ origin: corsOrigins.length ? corsOrigins : "*" }));
 app.use(express.json());
-
 app.get("/api/health", (req, res) => res.json({ ok: true, time: Date.now() }));
-
 app.use("/api/auth", authRouter);
 app.use("/api/clients", clientsRouter);
 app.use("/api/scan", scanRouter);
@@ -38,15 +37,15 @@ app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/prospects", prospectsPublicRouter);
 app.use("/api/staff/prospects", prospectsStaffRouter);
 app.use("/api/clients/:clientId/linen-types", clientLinenTypesRouter);
-
+app.use("/api/orders", ordersStaffRouter);
+app.use("/api/portal/orders", ordersPortalRouter);
+app.use("/api/batches", batchesRouter);
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: "Erreur serveur." });
 });
-
 const server = createServer(app);
 const port = process.env.PORT || 4000;
-
 initRealtime(server, corsOrigins.length ? corsOrigins : "*").then(() => {
   server.listen(port, () => {
     console.log(`Traçalinge API démarrée sur http://localhost:${port}`);
